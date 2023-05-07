@@ -15,7 +15,7 @@ from scipy.signal import welch
 import matplotlib.pyplot as plt
 
 ## Add path to PyDSP
-sys.path.append(r"C:\Users\Hannah\Documents\workspace")
+sys.path.append(r"C:\Users\Paul\Desktop")
 
 from PyDSP_core.TX.Tx_generateBits import Tx_generateBits, nextpow2
 from PyDSP_core.TX.setSignalParams import setSignalParams
@@ -29,7 +29,6 @@ from PyDSP_core.RX.setSNR import setSNR
 from PyDSP_core.DSP.symDemapper import symDemapper
 from PyDSP_core.DSP.rxDecision import BER_eval, EVM_eval, MI_eval
 from PyDSP_core.DSP.LPF_apply import LPF_apply
-
 
 #----------------------------------------------------------
 # LINK
@@ -49,12 +48,15 @@ rx_system_loss = 1 # dB
 pointing_loss = 3 #dB
 link_range = 1e6 # m
 
+# Detector
+Responsivity = 50        # A.W-1
+Fn_apd = 3.2             # Excess noise factor @M=100
+i_dark_apd = 1.5e-9
 
 tx_power = 300e-3 #W (average power)
 pointing_loss = 3 #dB
 atmospheric_loss = 0 #dB (set to zero for now)
 W0 =  0.02/2 #aperture radius (m)
-
 
 range_loss = olb.path_loss_gaussian(tx_beam_diam, wavelength, link_range, rx_aperture_diam, 0)
 
@@ -64,8 +66,16 @@ print('Link gain: %f dB' % all_losses)
 rx_power = tx_power*10**(all_losses/10)
 print('Power received: %f nW' % (rx_power*1e9))
 
-SNR_dB = 10*np.log10(rx_power)
-print('Power received: %f dB' % (SNR_dB))
+pd = olb.Photodiode(
+    gain=1,
+    responsivity=Responsivity,
+    bandwidth=60e9,
+    excess_noise_factor=Fn_apd,
+    dark_current=i_dark_apd)
+SNR_pd = pd.SNR(rx_power)
+
+SNR_dB = 10*np.log10(SNR_pd)
+print('SNR: %f dB' % (SNR_dB))
 
 #----------------------------------------------------------
 # COHERENT
@@ -220,3 +230,11 @@ columns = np.asarray([BER,EVM,MI])
 header = [f"Polarization-{i}" for i in range(1,SIG['nPol'] + 1)]
 
 print(tabulate(columns,headers=header,tablefmt= 'fancy_grid',showindex=parameters,numalign='right'))
+
+#TODO: update photodiode to a balance detector
+#TODO: change modulation and data rate
+
+#TODO: Get recovered phase
+#TODO: List parramaters interpretation and possible source for value (eg: rollOff and matached filter type, etc...) 
+#TODO: find inclined surface
+
